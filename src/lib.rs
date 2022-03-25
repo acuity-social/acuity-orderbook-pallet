@@ -4,6 +4,12 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
+use sp_runtime::RuntimeDebug;
+use frame_support::{
+	traits::Currency,
+};
+use codec::{Encode, Decode, MaxEncodedLen};
+use scale_info::TypeInfo;
 
 #[cfg(test)]
 mod mock;
@@ -14,29 +20,47 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct AssetId([u8; 24]);
+
+#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct Price(u128);
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use super::*;
+
+	type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		/// The currency type that the charity deals in
+        type Currency: Currency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// The pallet's runtime storage items.
-	// https://docs.substrate.io/v3/runtime/storage
 	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://docs.substrate.io/v3/runtime/storage#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
+	#[pallet::getter(fn account_pair_order)]
+	pub(super) type Orderbook<T: Config> = StorageNMap<
+	    _,
+	    (
+	        NMapKey<Blake2_128Concat, T::AccountId>,	// seller
+	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
+	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
+			NMapKey<Blake2_128Concat, Price>,			// selling price
+	    ),
+	    u128,
+	    ValueQuery,
+	>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
@@ -62,25 +86,50 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/v3/runtime/origins
-			let who = ensure_signed(origin)?;
 
-			// Update storage.
-			<Something<T>>::put(something);
+		#[pallet::weight(50_000_000)]
+		pub fn set_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: Price, value: u128) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
 
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
-			Ok(())
+            <Orderbook<T>>::insert((sender, sell_asset_id, buy_asset_id, price), value);
+//            Self::deposit_event(Event::AddToOrder(sender, chain_id, adapter_id, asset_id, price, foreign_address, value));
+			Ok(().into())
 		}
 
-		/// An example dispatchable that may throw a custom error.
+		#[pallet::weight(50_000_000)]
+		pub fn remove_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: Price) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+			<Orderbook<T>>::remove((sender, sell_asset_id, buy_asset_id, price));
+			Ok(().into())
+		}
+
+		#[pallet::weight(50_000_000)]
+		pub fn remove_orders_for_pair(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId) -> DispatchResultWithPostInfo {
+			let sender = ensure_signed(origin)?;
+
+			<Orderbook<T>>::remove_prefix((sender, sell_asset_id, buy_asset_id), None);
+			Ok(().into())
+		}
+
+		#[pallet::weight(50_000_000)]
+		pub fn remove_orders_for_sell_asset(origin: OriginFor<T>, sell_asset_id: AssetId) -> DispatchResultWithPostInfo {
+			let sender = ensure_signed(origin)?;
+
+			<Orderbook<T>>::remove_prefix((sender, sell_asset_id), None);
+			Ok(().into())
+		}
+/*
+		#[pallet::weight(50_000_000)]
+		pub fn remove_orders(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+			let sender = ensure_signed(origin)?;
+
+			<Orderbook<T>>::remove_prefix(sender, None);
+			Ok(().into())
+		}
+*/
+
+/*		/// An example dispatchable that may throw a custom error.
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
@@ -98,5 +147,6 @@ pub mod pallet {
 				},
 			}
 		}
+*/
 	}
 }
