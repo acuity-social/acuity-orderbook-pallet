@@ -5,9 +5,6 @@
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 use sp_runtime::RuntimeDebug;
-use frame_support::{
-	traits::Currency,
-};
 use codec::{Encode, Decode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
@@ -32,16 +29,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use super::*;
 
-	type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		/// The currency type that the charity deals in
-        type Currency: Currency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
