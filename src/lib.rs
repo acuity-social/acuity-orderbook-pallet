@@ -59,9 +59,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for event
-		/// parameters. [something, who]
-		SomethingStored(u32, T::AccountId),
+		/// An order was set. [sell_asset_id, buy_asset_id, price, value]
+		SetOrder(AssetId, AssetId, Price, u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -84,7 +83,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             <Orderbook<T>>::insert((sender, sell_asset_id, buy_asset_id, price), value);
-//            Self::deposit_event(Event::AddToOrder(sender, chain_id, adapter_id, asset_id, price, foreign_address, value));
+            Self::deposit_event(Event::SetOrder(sell_asset_id, buy_asset_id, price, value));
 			Ok(().into())
 		}
 
