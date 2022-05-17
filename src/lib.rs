@@ -21,7 +21,10 @@ mod benchmarking;
 pub struct AssetId([u8; 24]);
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct Price(u128);
+pub struct PriceValue {
+	pub price: u128,
+	pub value: u128,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -48,9 +51,8 @@ pub mod pallet {
 	        NMapKey<Blake2_128Concat, T::AccountId>,	// seller
 	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
 	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
-			NMapKey<Blake2_128Concat, Price>,			// selling price
 	    ),
-	    u128,
+	    PriceValue,
 	    ValueQuery,
 	>;
 
@@ -60,7 +62,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// An order was set. [sell_asset_id, buy_asset_id, price, value]
-		SetOrder(AssetId, AssetId, Price, u128),
+		SetOrder(AssetId, AssetId, u128, u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -79,27 +81,23 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 
 		#[pallet::weight(50_000_000)]
-		pub fn set_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: Price, value: u128) -> DispatchResultWithPostInfo {
+		pub fn set_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: u128, value: u128) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+			let price_value = PriceValue{
+				price: price,
+				value: value,
+			};
 
-            <Orderbook<T>>::insert((sender, sell_asset_id, buy_asset_id, price), value);
+            <Orderbook<T>>::insert((sender, sell_asset_id, buy_asset_id), price_value);
             Self::deposit_event(Event::SetOrder(sell_asset_id, buy_asset_id, price, value));
 			Ok(().into())
 		}
 
 		#[pallet::weight(50_000_000)]
-		pub fn remove_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: Price) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
-
-			<Orderbook<T>>::remove((sender, sell_asset_id, buy_asset_id, price));
-			Ok(().into())
-		}
-
-		#[pallet::weight(50_000_000)]
-		pub fn remove_orders_for_pair(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId) -> DispatchResultWithPostInfo {
+		pub fn remove_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::remove_prefix((sender, sell_asset_id, buy_asset_id), None);
+			<Orderbook<T>>::remove((sender, sell_asset_id, buy_asset_id));
 			Ok(().into())
 		}
 
@@ -110,34 +108,13 @@ pub mod pallet {
 			<Orderbook<T>>::remove_prefix((sender, sell_asset_id), None);
 			Ok(().into())
 		}
-/*
+
 		#[pallet::weight(50_000_000)]
 		pub fn remove_orders(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::remove_prefix(sender, None);
+			<Orderbook<T>>::remove_prefix((sender,), None);
 			Ok(().into())
 		}
-*/
-
-/*		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => Err(Error::<T>::NoneValue)?,
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
-		}
-*/
 	}
 }
