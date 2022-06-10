@@ -44,6 +44,13 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
+    #[pallet::getter(fn account_chain_id_account)]
+    pub(super) type ForeignAccount<T: Config> = StorageDoubleMap<_,
+		Blake2_128Concat, T::AccountId,
+		Blake2_128Concat, [u8; 8],
+		[u8; 32], ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn account_pair_order)]
 	pub(super) type Orderbook<T: Config> = StorageNMap<
 	    _,
