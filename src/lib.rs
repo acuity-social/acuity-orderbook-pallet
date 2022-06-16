@@ -17,8 +17,19 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+// 2 bytes chain type
+// 6 bytes eth chainId
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetId([u8; 24]);
+pub struct ChainId([u8; 8]);
+
+// 8 bytes chainId
+// 2 bytes adapterId (smart contract)
+// 6 bytes tokenId (first 6 bytes of address)
+#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct AssetId([u8; 16]);
+
+#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct ForeignAccount([u8; 32]);
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct PriceValue {
@@ -45,10 +56,10 @@ pub mod pallet {
 
 	#[pallet::storage]
     #[pallet::getter(fn account_chain_id_account)]
-    pub(super) type ForeignAccount<T: Config> = StorageDoubleMap<_,
+    pub(super) type AccountForeignAccount<T: Config> = StorageDoubleMap<_,
 		Blake2_128Concat, T::AccountId,
-		Blake2_128Concat, [u8; 8],
-		[u8; 32], ValueQuery>;
+		Blake2_128Concat, ChainId,
+		ForeignAccount, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn account_pair_order)]
@@ -68,6 +79,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// An order was set. [account, chain_id, foreign_account]
+		SetForeignAccount(T::AccountId, ChainId, ForeignAccount),
 		/// An order was set. [sell_asset_id, buy_asset_id, price, value]
 		SetOrder(AssetId, AssetId, u128, u128),
 	}
@@ -86,6 +99,15 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+
+		#[pallet::weight(50_000_000)]
+		pub fn set_foreign_account(origin: OriginFor<T>, chain_id: ChainId, foreign_account: ForeignAccount) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            <AccountForeignAccount<T>>::insert(&sender, chain_id, foreign_account);
+            Self::deposit_event(Event::SetForeignAccount(sender, chain_id, foreign_account));
+			Ok(().into())
+		}
 
 		#[pallet::weight(50_000_000)]
 		pub fn set_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: u128, value: u128) -> DispatchResultWithPostInfo {
