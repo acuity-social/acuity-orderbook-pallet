@@ -134,7 +134,7 @@ pub mod pallet {
 		pub fn remove_orders_for_sell_asset(origin: OriginFor<T>, sell_asset_id: AssetId) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::remove_prefix((sender, sell_asset_id), None);
+			<Orderbook<T>>::clear_prefix((sender, sell_asset_id), u32::max_value(), None);
 			Ok(().into())
 		}
 
@@ -142,7 +142,7 @@ pub mod pallet {
 		pub fn remove_orders(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::remove_prefix((sender,), None);
+			<Orderbook<T>>::clear_prefix((sender,), u32::max_value(), None);
 			Ok(().into())
 		}
 	}
