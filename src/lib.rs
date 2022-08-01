@@ -23,10 +23,11 @@ mod benchmarking;
 pub struct ChainId([u8; 8]);
 
 // 8 bytes chainId
+// 2 bytes address type 0 - base, 1 - ERC20
 // 2 bytes adapterId (smart contract)
-// 6 bytes tokenId (first 6 bytes of address)
+// 20 bytes tokenAddress
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetId([u8; 16]);
+pub struct AssetId([u8; 32]);
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct ForeignAccount([u8; 32]);
