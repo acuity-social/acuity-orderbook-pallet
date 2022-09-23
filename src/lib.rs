@@ -60,11 +60,12 @@ pub mod pallet {
     pub(super) type AccountForeignAccount<T: Config> = StorageDoubleMap<_,
 		Blake2_128Concat, T::AccountId,
 		Blake2_128Concat, ChainId,
-		ForeignAccount, ValueQuery>;
+		ForeignAccount
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn account_pair_order)]
-	pub(super) type Orderbook<T: Config> = StorageNMap<
+	pub(super) type AccountPairOrder<T: Config> = StorageNMap<
 	    _,
 	    (
 	        NMapKey<Blake2_128Concat, T::AccountId>,	// seller
@@ -72,7 +73,40 @@ pub mod pallet {
 	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
 	    ),
 	    PriceValue,
-	    ValueQuery,
+	>;
+
+	#[pallet::storage]
+    #[pallet::getter(fn pair_count)]
+    pub(super) type PairCount<T: Config> = StorageDoubleMap<_,
+		Blake2_128Concat, AssetId,			// sell assetId
+		Blake2_128Concat, AssetId,			// buy assetId
+        u32,
+		ValueQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn pair_Account_list)]
+	pub(super) type PairAccountList<T: Config> = StorageNMap<
+	    _,
+	    (
+	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
+	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
+			NMapKey<Blake2_128Concat, u32>,				// index
+	    ),
+		T::AccountId,	// seller
+	>;
+
+	#[pallet::storage]
+    #[pallet::getter(fn pair_account_index)]
+	// Mapping of sell assetId to buy assetId to seller to index + 1 in PairAccountList.
+	pub(super) type PairAccountIndex<T: Config> = StorageNMap<
+	    _,
+	    (
+	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
+	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
+			NMapKey<Blake2_128Concat, T::AccountId>,	// seller
+	    ),
+		u32,	// index + 1
 	>;
 
 	// Pallets use events to inform users when important changes are made.
@@ -118,7 +152,7 @@ pub mod pallet {
 				value: value,
 			};
 
-            <Orderbook<T>>::insert((sender, sell_asset_id, buy_asset_id), price_value);
+            <AccountPairOrder<T>>::insert((sender, sell_asset_id, buy_asset_id), price_value);
             Self::deposit_event(Event::SetOrder(sell_asset_id, buy_asset_id, price, value));
 			Ok(().into())
 		}
@@ -127,7 +161,7 @@ pub mod pallet {
 		pub fn remove_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::remove((sender, sell_asset_id, buy_asset_id));
+			<AccountPairOrder<T>>::remove((sender, sell_asset_id, buy_asset_id));
 			Ok(().into())
 		}
 
@@ -135,7 +169,7 @@ pub mod pallet {
 		pub fn remove_orders_for_sell_asset(origin: OriginFor<T>, sell_asset_id: AssetId) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::clear_prefix((sender, sell_asset_id), u32::max_value(), None);
+			<AccountPairOrder<T>>::clear_prefix((sender, sell_asset_id), u32::max_value(), None);
 			Ok(().into())
 		}
 
@@ -143,7 +177,7 @@ pub mod pallet {
 		pub fn remove_orders(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			<Orderbook<T>>::clear_prefix((sender,), u32::max_value(), None);
+			<AccountPairOrder<T>>::clear_prefix((sender,), u32::max_value(), None);
 			Ok(().into())
 		}
 	}
