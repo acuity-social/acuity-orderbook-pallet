@@ -85,7 +85,7 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn pair_Account_list)]
+    #[pallet::getter(fn pair_account_list)]
 	pub(super) type PairAccountList<T: Config> = StorageNMap<
 	    _,
 	    (
@@ -179,6 +179,22 @@ pub mod pallet {
 
 			<AccountPairOrder<T>>::clear_prefix((sender,), u32::max_value(), None);
 			Ok(().into())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		pub fn get_pair_sellers(sell_asset_id: AssetId, buy_asset_id: AssetId, offset: u32, count: u32) -> sp_std::prelude::Vec<T::AccountId> {
+			let mut sellers = sp_std::prelude::Vec::new();
+
+			let count = sp_std::cmp::min(PairCount::<T>::get(&sell_asset_id, &buy_asset_id) - offset, count);
+
+			let mut i = offset;
+			while i < count {
+				sellers.push(PairAccountList::<T>::get((&sell_asset_id, &buy_asset_id, i)).unwrap());
+				i = i + 1;
+			}
+
+			sellers
 		}
 	}
 }
