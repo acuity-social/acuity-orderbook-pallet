@@ -124,7 +124,7 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Error names should be descriptive.
-		NoneValue,
+		NoOrder,
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
 	}
@@ -146,22 +146,62 @@ pub mod pallet {
 
 		#[pallet::weight(50_000_000)]
 		pub fn set_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: u128, value: u128) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let seller = ensure_signed(origin)?;
 			let price_value = PriceValue{
 				price: price,
 				value: value,
 			};
 
-            <AccountPairOrder<T>>::insert((sender, sell_asset_id, buy_asset_id), price_value);
+			// check price_value is not default
+
+            <AccountPairOrder<T>>::insert((&seller, sell_asset_id, buy_asset_id), price_value);
+
+			// Check if this seller already has an order for this pair.
+			if !<PairAccountIndex<T>>::contains_key((sell_asset_id, buy_asset_id, &seller)) {
+				// Get the total number of sellers the pair already has.
+				let count = PairCount::<T>::get(&sell_asset_id, &buy_asset_id);
+				// Insert the new seller at the end of the list.
+				<PairAccountList<T>>::insert((&sell_asset_id, &buy_asset_id, count), &seller);
+				// Update the size of the list.
+				<PairCount<T>>::insert(&sell_asset_id, &buy_asset_id, count + 1);
+				// Store index + 1
+				<PairAccountIndex<T>>::insert((sell_asset_id, buy_asset_id, seller), count + 1);
+			}
+
             Self::deposit_event(Event::SetOrder(sell_asset_id, buy_asset_id, price, value));
 			Ok(().into())
 		}
 
 		#[pallet::weight(50_000_000)]
 		pub fn remove_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId) -> DispatchResultWithPostInfo {
-			let sender = ensure_signed(origin)?;
+			let seller = ensure_signed(origin)?;
 
-			<AccountPairOrder<T>>::remove((sender, sell_asset_id, buy_asset_id));
+			// Get the index + 1 of the seller to be removed
+			let i = match <PairAccountIndex<T>>::get((sell_asset_id, buy_asset_id, &seller)) {
+                Some(i) => i,
+                None => return Err(Error::<T>::NoOrder.into()),
+            };
+
+			//----------------------------------------
+
+			// Delete the index from state.
+			<PairAccountIndex<T>>::remove((sell_asset_id, buy_asset_id, &seller));
+			// Get the list length.
+			let count = PairCount::<T>::get(&sell_asset_id, &buy_asset_id);
+			// Check if this is not the last account.
+			if i != count {
+				// Get the last account.
+				let moving_account = <PairAccountList<T>>::get((&sell_asset_id, &buy_asset_id, count - 1)).unwrap();
+				// Overwrite the seller being untrusted with the last account.
+				<PairAccountList<T>>::insert((&sell_asset_id, &buy_asset_id, i - 1), &moving_account);
+				// Update the index + 1 of the last account.
+				<PairAccountIndex<T>>::insert((&sell_asset_id, &buy_asset_id, moving_account), i);
+			}
+			// Remove the last account.
+			<PairAccountList<T>>::remove((&sell_asset_id, &buy_asset_id, count - 1));
+			<PairCount<T>>::insert(&sell_asset_id, &buy_asset_id, count - 1);
+
+			<AccountPairOrder<T>>::remove((seller, sell_asset_id, buy_asset_id));
 			Ok(().into())
 		}
 
