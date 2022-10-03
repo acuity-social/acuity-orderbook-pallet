@@ -152,7 +152,9 @@ pub mod pallet {
 				value: value,
 			};
 
-			// check price_value is not default
+			if price_value == Default::default() {
+				return Err(Error::<T>::NoOrder.into());
+			}
 
             <AccountPairOrder<T>>::insert((&seller, sell_asset_id, buy_asset_id), price_value);
 
