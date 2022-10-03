@@ -22,13 +22,19 @@ frame-system = { default-features = false, version = "4.0.0-dev", git = "https:/
 frame-benchmarking = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", optional = true }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 sp-runtime = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
+serde = { version = "1.0.137", optional = true, default-features = false, features = ["derive"] }
+impl-serde = { version = "0.3.2", optional = true, default-features = false }
 
 [dev-dependencies]
 sp-io = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 sp-core = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 
 [features]
-default = ["std"]
+default = ["std", "serde_derive"]
+serde_derive = [
+    "impl-serde",
+    "serde",
+]
 std = [
 	"codec/std",
 	"scale-info/std",

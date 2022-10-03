@@ -6,6 +6,8 @@
 pub use pallet::*;
 use sp_runtime::RuntimeDebug;
 use codec::{Encode, Decode, MaxEncodedLen};
+#[cfg(feature = "serde_derive")]
+use serde::{Deserialize, Serialize};
 use scale_info::TypeInfo;
 
 #[cfg(test)]
@@ -27,12 +29,14 @@ pub struct ChainId([u8; 8]);
 // 2 bytes adapterId (smart contract)
 // 20 bytes tokenAddress
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetId([u8; 32]);
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct ForeignAccount([u8; 32]);
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct PriceValue {
 	pub price: u128,
 	pub value: u128,
