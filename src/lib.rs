@@ -19,6 +19,34 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+/// Serialization shim for arbitrary arrays that is consistent with `polkadot-js`'s implementation.
+///
+/// `polkadot-js` sends us a `0x01020304`, but the default rust implementation for arrays expects a
+/// `[0x01, 0x02, 0x03, 0x04]`. Here, we use a similar serialization as substrate uses for `vec`,
+/// but we transform it to an array before returning.
+#[cfg(feature = "serde_derive")]
+pub mod serialize_array {
+	use impl_serde::serialize::{deserialize_check_len, ExpectedLen};
+	use serde::Deserializer;
+
+	// default serialize is fine
+	pub use impl_serde::serialize::serialize;
+
+	pub use deserialize_array as deserialize;
+
+	pub fn deserialize_array<'de, D, const T: usize>(deserializer: D) -> Result<[u8; T], D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		// All hail the stable const generics!
+		let mut arr = [0u8; T];
+		deserialize_check_len(deserializer, ExpectedLen::Exact(&mut arr[..]))?;
+
+		Ok(arr)
+	}
+}
+
+
 // 2 bytes chain type
 // 6 bytes eth chainId
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -30,7 +58,10 @@ pub struct ChainId([u8; 8]);
 // 20 bytes tokenAddress
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetId([u8; 32]);
+pub struct AssetId(
+    #[cfg_attr(feature = "std", serde(with = "serialize_array"))]
+    [u8; 32]
+);
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct ForeignAccount([u8; 32]);
