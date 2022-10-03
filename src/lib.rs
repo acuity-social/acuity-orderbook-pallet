@@ -238,5 +238,16 @@ pub mod pallet {
 
 			sellers
 		}
+
+		pub fn get_pair_sellers_orders(sell_asset_id: AssetId, buy_asset_id: AssetId, offset: u32, count: u32) -> (sp_std::prelude::Vec<T::AccountId>, sp_std::prelude::Vec<PriceValue>) {
+			let sellers = Self::get_pair_sellers(sell_asset_id, buy_asset_id, offset, count);
+			let mut orders = sp_std::prelude::Vec::new();
+
+			for seller in &sellers {
+				orders.push(<AccountPairOrder<T>>::get((seller, sell_asset_id, buy_asset_id)).unwrap());
+			}
+
+			(sellers, orders)
+		}
 	}
 }

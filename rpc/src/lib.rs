@@ -15,11 +15,14 @@ use std::sync::Arc;
 
 pub use pallet_acuity_orderbook_rpc_runtime_api::OrderbookApi as OrderbookRuntimeApi;
 pub use pallet_acuity_orderbook::AssetId;
+pub use pallet_acuity_orderbook::PriceValue;
 
 #[rpc(client, server)]
-pub trait OrderbookApi<AssetId, AccountId, BlockHash> {
+pub trait OrderbookApi<AssetId, AccountId, PriceValue, BlockHash> {
 	#[method(name = "orderbook_getPairSellers")]
 	fn get_pair_sellers(&self, sell_asset_id: AssetId, buy_asset_id: AssetId, offset: u32, count: u32, at: Option<BlockHash>) -> RpcResult<Vec<AccountId>>;
+	#[method(name = "orderbook_getPairSellersOrders")]
+	fn get_pair_sellers_orders(&self, sell_asset_id: AssetId, buy_asset_id: AssetId, offset: u32, count: u32, at: Option<BlockHash>) -> RpcResult<(Vec<AccountId>, Vec<PriceValue>)>;
 }
 
 pub struct Orderbook<C, P> {
@@ -52,7 +55,7 @@ impl From<Error> for i32 {
 
 #[async_trait]
 impl<C, AccountId, Block>
-	OrderbookApiServer<AssetId, AccountId, <Block as BlockT>::Hash>
+	OrderbookApiServer<AssetId, AccountId, PriceValue, <Block as BlockT>::Hash>
 	for Orderbook<C, Block>
 where
     AccountId: Codec,
@@ -60,7 +63,7 @@ where
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api: OrderbookRuntimeApi<Block, AssetId, AccountId>,
+    C::Api: OrderbookRuntimeApi<Block, AssetId, AccountId, PriceValue>,
 {
 	fn get_pair_sellers(
 		&self,
@@ -77,6 +80,30 @@ where
         ));
 
 		api.get_pair_sellers(&at, sell_asset_id, buy_asset_id, offset, count).map_err(|e| {
+			CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to query dispatch info.",
+				Some(e.to_string()),
+			))
+			.into()
+		})
+	}
+
+	fn get_pair_sellers_orders(
+		&self,
+		sell_asset_id: AssetId,
+		buy_asset_id: AssetId,
+		offset: u32,
+		count: u32,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<(Vec<AccountId>, Vec<PriceValue>)> {
+    	let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(||
+            // If the block hash is not supplied assume the best block.
+            self.client.info().best_hash
+        ));
+
+		api.get_pair_sellers_orders(&at, sell_asset_id, buy_asset_id, offset, count).map_err(|e| {
 			CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to query dispatch info.",
