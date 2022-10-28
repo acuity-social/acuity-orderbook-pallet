@@ -158,10 +158,10 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Error names should be descriptive.
-		NoOrder,
-		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+		/// The sell order is invalid.
+		InvalidSellOrder,
+		/// The sell order could not be found.
+		SellOrderNotFound,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -188,8 +188,10 @@ pub mod pallet {
 			};
 
 			if price_value == Default::default() {
-				return Err(Error::<T>::NoOrder.into());
+				return Err(Error::<T>::InvalidSellOrder.into());
 			}
+
+			//----------------------------------------
 
             <AccountPairOrder<T>>::insert((&seller, sell_asset_id, buy_asset_id), price_value);
 
@@ -216,7 +218,7 @@ pub mod pallet {
 			// Get the index + 1 of the seller to be removed
 			let i = match <PairAccountIndex<T>>::get((sell_asset_id, buy_asset_id, &seller)) {
                 Some(i) => i,
-                None => return Err(Error::<T>::NoOrder.into()),
+                None => return Err(Error::<T>::SellOrderNotFound.into()),
             };
 
 			//----------------------------------------
@@ -241,7 +243,7 @@ pub mod pallet {
 			<AccountPairOrder<T>>::remove((seller, sell_asset_id, buy_asset_id));
 			Ok(().into())
 		}
-
+/*
 		#[pallet::weight(50_000_000)]
 		pub fn remove_orders_for_sell_asset(origin: OriginFor<T>, sell_asset_id: AssetId) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
@@ -257,6 +259,7 @@ pub mod pallet {
 			<AccountPairOrder<T>>::clear_prefix((sender,), u32::max_value(), None);
 			Ok(().into())
 		}
+*/
 	}
 
 	impl<T: Config> Pallet<T> {
