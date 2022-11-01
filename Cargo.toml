@@ -30,11 +30,7 @@ sp-io = { default-features = false, version = "6.0.0", git = "https://github.com
 sp-core = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.30" }
 
 [features]
-default = ["std", "serde_derive"]
-serde_derive = [
-    "impl-serde",
-    "serde",
-]
+default = ["std"]
 std = [
 	"codec/std",
 	"scale-info/std",
@@ -42,6 +38,8 @@ std = [
 	"frame-system/std",
 	"frame-benchmarking/std",
 	"sp-runtime/std",
-	"sp-std/std"
+	"sp-std/std",
+	"serde/std",
+	"impl-serde/std"
 ]
 try-runtime = []
