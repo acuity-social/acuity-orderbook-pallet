@@ -92,22 +92,20 @@ pub mod pallet {
 
 	#[pallet::storage]
     #[pallet::getter(fn account_chain_id_account)]
-	/// TWOX-NOTE: OK ― `AccountId` is a secure hash.
     pub(super) type AccountForeignAccount<T: Config> = StorageDoubleMap<_,
-		Twox64Concat, T::AccountId,
-		Blake2_128Concat, ChainId,
+		Identity, T::AccountId,
+		Twox64Concat, ChainId,
 		ForeignAccount
 	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn account_pair_order)]
-	/// TWOX-NOTE: OK ― `AccountId` is a secure hash.
 	pub(super) type AccountPairOrder<T: Config> = StorageNMap<
 	    _,
 	    (
-	        NMapKey<Twox64Concat, T::AccountId>,		// seller
-	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
-	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
+	        NMapKey<Identity, T::AccountId>,		// seller
+	        NMapKey<Twox64Concat, AssetId>,			// sell assetId
+	        NMapKey<Twox64Concat, AssetId>,			// buy assetId
 	    ),
 	    PriceValue,
 	>;
@@ -128,7 +126,7 @@ pub mod pallet {
 	    (
 	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
 	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
-			NMapKey<Blake2_128Concat, u32>,				// index
+			NMapKey<Twox64Concat, u32>,					// index
 	    ),
 		T::AccountId,	// seller
 	>;
@@ -141,7 +139,7 @@ pub mod pallet {
 	    (
 	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
 	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
-			NMapKey<Blake2_128Concat, T::AccountId>,	// seller
+			NMapKey<Identity, T::AccountId>,			// seller
 	    ),
 		u32,	// index + 1
 	>;
