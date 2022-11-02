@@ -92,18 +92,20 @@ pub mod pallet {
 
 	#[pallet::storage]
     #[pallet::getter(fn account_chain_id_account)]
+	/// TWOX-NOTE: OK ― `AccountId` is a secure hash.
     pub(super) type AccountForeignAccount<T: Config> = StorageDoubleMap<_,
-		Blake2_128Concat, T::AccountId,
+		Twox64Concat, T::AccountId,
 		Blake2_128Concat, ChainId,
 		ForeignAccount
 	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn account_pair_order)]
+	/// TWOX-NOTE: OK ― `AccountId` is a secure hash.
 	pub(super) type AccountPairOrder<T: Config> = StorageNMap<
 	    _,
 	    (
-	        NMapKey<Blake2_128Concat, T::AccountId>,	// seller
+	        NMapKey<Twox64Concat, T::AccountId>,		// seller
 	        NMapKey<Blake2_128Concat, AssetId>,			// sell assetId
 	        NMapKey<Blake2_128Concat, AssetId>,			// buy assetId
 	    ),
