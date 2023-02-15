@@ -170,6 +170,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 
+		#[pallet::call_index(0)]
 		#[pallet::weight(50_000_000)]
 		pub fn set_foreign_account(origin: OriginFor<T>, chain_id: ChainId, foreign_account: ForeignAccount) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
@@ -179,6 +180,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::call_index(1)]
 		#[pallet::weight(50_000_000)]
 		pub fn set_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId, price: u128, value: u128) -> DispatchResultWithPostInfo {
             let seller = ensure_signed(origin)?;
@@ -211,6 +213,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::call_index(2)]
 		#[pallet::weight(50_000_000)]
 		pub fn remove_order(origin: OriginFor<T>, sell_asset_id: AssetId, buy_asset_id: AssetId) -> DispatchResultWithPostInfo {
 			let seller = ensure_signed(origin)?;
