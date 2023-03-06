@@ -1,13 +1,12 @@
 use codec::Codec;
 use jsonrpsee::{
-	core::{async_trait, RpcResult},
+	core::RpcResult,
 	proc_macros::rpc,
 	types::error::{CallError, ErrorObject},
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{
-	generic::BlockId,
 	traits::Block as BlockT,
 };
 
@@ -53,7 +52,6 @@ impl From<Error> for i32 {
 	}
 }
 
-#[async_trait]
 impl<C, AccountId, Block>
 	OrderbookApiServer<AssetId, AccountId, PriceValue, <Block as BlockT>::Hash>
 	for Orderbook<C, Block>
@@ -74,12 +72,9 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<Vec<AccountId>> {
     	let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash
-        ));
+		let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
 
-		api.get_pair_sellers(&at, sell_asset_id, buy_asset_id, offset, count).map_err(|e| {
+		api.get_pair_sellers(at_hash, sell_asset_id, buy_asset_id, offset, count).map_err(|e| {
 			CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to query dispatch info.",
@@ -98,12 +93,9 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<(Vec<AccountId>, Vec<PriceValue>)> {
     	let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash
-        ));
+		let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
 
-		api.get_pair_sellers_orders(&at, sell_asset_id, buy_asset_id, offset, count).map_err(|e| {
+		api.get_pair_sellers_orders(at_hash, sell_asset_id, buy_asset_id, offset, count).map_err(|e| {
 			CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to query dispatch info.",
