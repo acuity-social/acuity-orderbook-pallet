@@ -77,14 +77,13 @@ pub struct PriceValue {
     pub value: u128,
 }
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -98,55 +97,6 @@ pub mod pallet {
     #[pallet::getter(fn account_chain_id_account)]
     pub(super) type AccountForeignAccount<T: Config> =
         StorageDoubleMap<_, Identity, T::AccountId, Twox64Concat, ChainId, ForeignAccount>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn account_pair_order)]
-    pub(super) type AccountPairOrder<T: Config> = StorageNMap<
-        _,
-        (
-            NMapKey<Identity, T::AccountId>, // seller
-            NMapKey<Twox64Concat, AssetId>,  // sell assetId
-            NMapKey<Twox64Concat, AssetId>,  // buy assetId
-        ),
-        PriceValue,
-    >;
-
-    #[pallet::storage]
-    #[pallet::getter(fn pair_count)]
-    pub(super) type PairCount<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        AssetId, // sell assetId
-        Blake2_128Concat,
-        AssetId, // buy assetId
-        u32,
-        ValueQuery,
-    >;
-
-    #[pallet::storage]
-    #[pallet::getter(fn pair_account_list)]
-    pub(super) type PairAccountList<T: Config> = StorageNMap<
-        _,
-        (
-            NMapKey<Blake2_128Concat, AssetId>, // sell assetId
-            NMapKey<Blake2_128Concat, AssetId>, // buy assetId
-            NMapKey<Twox64Concat, u32>,         // index
-        ),
-        T::AccountId, // seller
-    >;
-
-    #[pallet::storage]
-    #[pallet::getter(fn pair_account_index)]
-    // Mapping of sell assetId to buy assetId to seller to index + 1 in PairAccountList.
-    pub(super) type PairAccountIndex<T: Config> = StorageNMap<
-        _,
-        (
-            NMapKey<Blake2_128Concat, AssetId>, // sell assetId
-            NMapKey<Blake2_128Concat, AssetId>, // buy assetId
-            NMapKey<Identity, T::AccountId>,    // seller
-        ),
-        u32, // index + 1
-    >;
 
     // Pallets use events to inform users when important changes are made.
     // https://docs.substrate.io/v3/runtime/events-and-errors
@@ -205,20 +155,6 @@ pub mod pallet {
 
             //----------------------------------------
 
-            <AccountPairOrder<T>>::insert((&seller, sell_asset_id, buy_asset_id), price_value);
-
-            // Check if this seller already has an order for this pair.
-            if !<PairAccountIndex<T>>::contains_key((sell_asset_id, buy_asset_id, &seller)) {
-                // Get the total number of sellers the pair already has.
-                let count = PairCount::<T>::get(sell_asset_id, buy_asset_id);
-                // Insert the new seller at the end of the list.
-                <PairAccountList<T>>::insert((sell_asset_id, buy_asset_id, count), &seller);
-                // Update the size of the list.
-                <PairCount<T>>::insert(sell_asset_id, buy_asset_id, count + 1);
-                // Store index + 1
-                <PairAccountIndex<T>>::insert((sell_asset_id, buy_asset_id, seller), count + 1);
-            }
-
             Self::deposit_event(Event::SetOrder(sell_asset_id, buy_asset_id, price, value));
             Ok(().into())
         }
@@ -232,33 +168,6 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let seller = ensure_signed(origin)?;
 
-            // Get the index + 1 of the seller to be removed
-            let i = match <PairAccountIndex<T>>::get((sell_asset_id, buy_asset_id, &seller)) {
-                Some(i) => i,
-                None => return Err(Error::<T>::SellOrderNotFound.into()),
-            };
-
-            //----------------------------------------
-
-            // Delete the index from state.
-            <PairAccountIndex<T>>::remove((sell_asset_id, buy_asset_id, &seller));
-            // Get the list length.
-            let count = PairCount::<T>::get(sell_asset_id, buy_asset_id);
-            // Check if this is not the last account.
-            if i != count {
-                // Get the last account.
-                let moving_account =
-                    <PairAccountList<T>>::get((&sell_asset_id, &buy_asset_id, count - 1)).unwrap();
-                // Overwrite the seller being untrusted with the last account.
-                <PairAccountList<T>>::insert((sell_asset_id, buy_asset_id, i - 1), &moving_account);
-                // Update the index + 1 of the last account.
-                <PairAccountIndex<T>>::insert((sell_asset_id, buy_asset_id, moving_account), i);
-            }
-            // Remove the last account.
-            <PairAccountList<T>>::remove((&sell_asset_id, &buy_asset_id, count - 1));
-            <PairCount<T>>::insert(sell_asset_id, buy_asset_id, count - 1);
-
-            <AccountPairOrder<T>>::remove((seller, sell_asset_id, buy_asset_id));
             Ok(().into())
         }
         /*
@@ -266,7 +175,6 @@ pub mod pallet {
                 pub fn remove_orders_for_sell_asset(origin: OriginFor<T>, sell_asset_id: AssetId) -> DispatchResultWithPostInfo {
                     let sender = ensure_signed(origin)?;
 
-                    <AccountPairOrder<T>>::clear_prefix((sender, sell_asset_id), u32::max_value(), None);
                     Ok(().into())
                 }
 
@@ -274,55 +182,8 @@ pub mod pallet {
                 pub fn remove_orders(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
                     let sender = ensure_signed(origin)?;
 
-                    <AccountPairOrder<T>>::clear_prefix((sender,), u32::max_value(), None);
                     Ok(().into())
                 }
         */
-    }
-
-    impl<T: Config> Pallet<T> {
-        pub fn get_pair_sellers(
-            sell_asset_id: AssetId,
-            buy_asset_id: AssetId,
-            offset: u32,
-            count: u32,
-        ) -> sp_std::prelude::Vec<T::AccountId> {
-            let mut sellers = sp_std::prelude::Vec::new();
-
-            let count = sp_std::cmp::min(
-                PairCount::<T>::get(sell_asset_id, buy_asset_id) - offset,
-                count,
-            );
-
-            let mut i = offset;
-            while i < count {
-                sellers
-                    .push(PairAccountList::<T>::get((&sell_asset_id, &buy_asset_id, i)).unwrap());
-                i += 1;
-            }
-
-            sellers
-        }
-
-        pub fn get_pair_sellers_orders(
-            sell_asset_id: AssetId,
-            buy_asset_id: AssetId,
-            offset: u32,
-            count: u32,
-        ) -> (
-            sp_std::prelude::Vec<T::AccountId>,
-            sp_std::prelude::Vec<PriceValue>,
-        ) {
-            let sellers = Self::get_pair_sellers(sell_asset_id, buy_asset_id, offset, count);
-            let mut orders = sp_std::prelude::Vec::new();
-
-            for seller in &sellers {
-                orders.push(
-                    <AccountPairOrder<T>>::get((seller, sell_asset_id, buy_asset_id)).unwrap(),
-                );
-            }
-
-            (sellers, orders)
-        }
     }
 }
